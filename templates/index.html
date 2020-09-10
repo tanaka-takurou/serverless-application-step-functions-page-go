@@ -1,0 +1,92 @@
+{{define "base"}}
+<!doctype html>
+<html>
+  <head>
+{{template "headtag" .}}
+  </head>
+  <body>
+    <h1 class="ui center aligned header">Step Functions</h1>
+    <h2 class="ui center aligned header">Image Converter</h2>
+    <div class="main ui container">
+      <form class="ui segment" method="POST">
+        <div class="content">
+          <div class="ui form">
+            <div class="field">
+              <img id="preview" src>
+            </div>
+            <div class="field">
+              <label>Image File</label>
+              <div class="ui input">
+                <input id="image" type="file" name="image" accept="image/*" onchange="ChangeImage();">
+              </div>
+            </div>
+            <div class="field">
+              <div id="submit" class="ui green button" onclick="UploadImage(this);">Send</div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div id="warning" class="ui hidden warning message"></div>
+    <div id="info" class="ui hidden info message">
+      <i class="close icon"></i>
+      <div class="header">
+        Result
+      </div>
+      <div class="ui unstackable items">
+        <div class="ui three column grid">
+          <div class="column">
+            <div class="ui segment">
+              <a id="img_convert_jpg_link" class="ui active centered inline loader" target=”_blank” href="">
+                <img id="img_convert_jpg" src="">
+              </a>
+            </div>
+          </div>
+          <div class="column">
+            <div class="ui segment">
+              <a id="img_convert_png_link" class="ui active centered inline loader" target=”_blank” href="">
+                <img id="img_convert_png" src="">
+              </a>
+            </div>
+          </div>
+          <div class="column">
+            <div class="ui segment">
+              <a id="img_icon_200_link" class="ui active centered inline loader" target=”_blank” href="">
+                <img id="img_icon_200" src="">
+              </a>
+            </div>
+          </div>
+          <div class="column">
+            <div class="ui segment">
+              <a id="img_icon_300_link" class="ui active centered inline loader" target=”_blank” href="">
+                <img id="img_icon_300" src="">
+              </a>
+            </div>
+          </div>
+          <div class="column">
+            <div class="ui segment">
+              <a id="img_thumbnail_960_540_link" class="ui active centered inline loader" target=”_blank” href="">
+                <img id="img_thumbnail_960_540" src="">
+              </a>
+            </div>
+          </div>
+          <div class="column">
+            <div class="ui segment">
+              <a id="img_thumbnail_1440_810_link" class="ui active centered inline loader" target=”_blank” href="">
+                <img id="img_thumbnail_1440_810" src="">
+              </a>
+            </div>
+          </div>
+          <div class="column">
+            <div class="ui segment">
+              <a id="img_thumbnail_480_270_link" class="ui active centered inline loader" target=”_blank” href="">
+                <img id="img_thumbnail_480_270" src="">
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+{{end}}

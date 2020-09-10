@@ -1,0 +1,13 @@
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+packaged.yml
+
+out.json
+
+**/bin
+**/*.log
+**/*.DS_Store

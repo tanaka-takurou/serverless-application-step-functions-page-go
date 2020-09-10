@@ -1,0 +1,93 @@
+{
+  "StartAt": "Convert jpg image",
+  "States": {
+    "Convert jpg image": {
+      "Type": "Task",
+      "Resource": "${LambdaFunction}",
+      "Parameters": {
+        "action": "convert",
+        "key.$": "$.Key",
+        "type": "jpg"
+      },
+      "Next": "Convert png image"
+    },
+    "Convert png image": {
+      "Type": "Task",
+      "Resource": "${LambdaFunction}",
+      "Parameters": {
+        "action": "convert",
+        "key.$": "$.Key",
+        "type": "png"
+      },
+      "Next": "Create medium icon"
+    },
+    "Create medium icon": {
+      "Type": "Task",
+      "Resource": "${LambdaFunction}",
+      "Parameters": {
+        "action": "icon",
+        "key.$": "$.Key",
+        "icon": {
+          "diameter": "200",
+          "bgcolor": "f0ff"
+        }
+      },
+      "Next": "Create large icon"
+    },
+    "Create large icon": {
+      "Type": "Task",
+      "Resource": "${LambdaFunction}",
+      "Parameters": {
+        "action": "icon",
+        "key.$": "$.Key",
+        "icon": {
+          "diameter": "300",
+          "bgcolor": "f0ff"
+        }
+      },
+      "Next": "Create medium thumbnail"
+    },
+    "Create medium thumbnail": {
+      "Type": "Task",
+      "Resource": "${LambdaFunction}",
+      "Parameters": {
+        "action": "thumbnail",
+        "key.$": "$.Key",
+        "thumbnail": {
+          "width": "960",
+          "height": "540",
+          "bgcolor": "f0ff"
+        }
+      },
+      "Next": "Create large thumbnail"
+    },
+    "Create large thumbnail": {
+      "Type": "Task",
+      "Resource": "${LambdaFunction}",
+      "Parameters": {
+        "action": "thumbnail",
+        "key.$": "$.Key",
+        "thumbnail": {
+          "width": "1440",
+          "height": "810",
+          "bgcolor": "f0ff"
+        }
+      },
+      "Next": "Create small thumbnail"
+    },
+    "Create small thumbnail": {
+      "Type": "Task",
+      "Resource": "${LambdaFunction}",
+      "Parameters": {
+        "action": "thumbnail",
+        "key.$": "$.Key",
+        "thumbnail": {
+          "width": "480",
+          "height": "270",
+          "bgcolor": "f0ff"
+        }
+      },
+      "End": true
+    }
+  }
+}

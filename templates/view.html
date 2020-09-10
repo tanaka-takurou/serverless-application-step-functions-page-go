@@ -1,0 +1,228 @@
+{{define "main.css"}}<style type="text/css">
+body {
+  background-color: #EEE;
+}
+body > .grid {
+  height: 100%;
+}
+body > h1 {
+  margin-top: 60px !important;
+  margin-bottom: 0 !important;
+}
+.image {
+  margin-top: -100px;
+}
+.column {
+  max-width: 100%;
+}
+#preview {
+  max-width: 100%;
+}
+.ui.segment > a > img {
+  max-width: 100%;
+}
+</style>{{end}}
+{{define "main.js"}}
+<script type="text/javascript">
+var OpenModal = function() {
+  $('.large.modal').modal('show');
+}
+var CloseModal = function() {
+  $('.large.modal').modal('hide');
+}
+var toBase64 = function(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+}
+var OnConverted = function() {
+  return function(v) {
+    App.imgdata = v;
+    $('#preview').attr('src', v);
+  }
+}
+var UploadImage = function(elm) {
+  if (!!App.imgdata) {
+    $(elm).addClass("disabled");
+    PutImage();
+  }
+}
+var PutImage = function() {
+  const file = $('#image').prop('files')[0];
+  App.extension = GetExtension(file.name);
+  const data = {action: 'upload', filename: file.name, filedata: App.imgdata};
+  Request(data, (res)=>{
+    App.sid = res.message;
+    App.progress = 'convert_jpg';
+    CheckProgress();
+    $("#info").removeClass("hidden").addClass("visible");
+    ScrollBottom();
+    setTimeout(function() {
+      CheckStatus();
+    }, 3000);
+  }, (e)=>{
+    console.log(e.responseJSON.message);
+  });
+}
+var ChangeImage = function() {
+  const file = $('#image').prop('files')[0];
+  toBase64(file).then(OnConverted());
+}
+var CheckStatus = function() {
+  const data = {action: 'checkstatus', id: App.sid};
+  Request(data, (res)=>{
+    if (res.message == 'RUNNING') {
+      setTimeout(function() {
+        CheckStatus();
+      }, 30000);
+    } else if (res.message == 'SUCCEEDED') {
+      console.log(res.message);
+    } else {
+      console.log(res.message);
+      $("#warning").text(res.message).removeClass("hidden").addClass("visible");
+      ScrollBottom();
+    }
+  }, (e)=>{
+    console.log(e.responseJSON.message);
+  });
+}
+
+var Request = function(data, callback, onerror) {
+  $.ajax({
+    type:          'POST',
+    dataType:      'json',
+    contentType:   'application/json',
+    scriptCharset: 'utf-8',
+    data:          JSON.stringify(data),
+    url:           App.url
+  })
+  .done(function(res) {
+    callback(res);
+  })
+  .fail(function(e) {
+    onerror(e);
+  });
+};
+
+var CheckProgress = function() {
+  if (!App.sid) {
+    $("#warning").text("ID is Empty").removeClass("hidden").addClass("visible");
+    return false;
+  }
+  var url = App.bucket + App.sid.substr(0, 4) + '-' + App.sid.substr(4, 2) + '-' + App.sid.substr(6, 2) + '-' + App.sid.substr(8, 2) + '-' + App.sid.substr(10, 2) + '/' + App.sid;
+  switch (App.progress){
+  case "convert_jpg":
+    url += "_convert.jpg"
+    break;
+  case "convert_png":
+    url += "_convert.png"
+    break;
+  case "icon_200":
+    url += "_icon_200." + App.extension
+    break;
+  case "icon_300":
+    url += "_icon_300." + App.extension
+    break;
+  case "thumbnail_960_540":
+    url += "_thumbnail_960_540." + App.extension
+    break;
+  case "thumbnail_1440_810":
+    url += "_thumbnail_1440_810." + App.extension
+    break;
+  case "thumbnail_480_270":
+    url += "_thumbnail_480_270." + App.extension
+    break;
+  }
+  CheckExist(url, (res)=>{
+      switch (App.progress){
+      case "convert_jpg":
+        App.progress = "convert_png";
+        $("#img_convert_jpg_link").removeClass("active").removeClass("loader").attr('href', url);
+        $("#img_convert_jpg").attr('src', url);
+        ScrollBottom();
+        CheckProgress();
+        break;
+      case "convert_png":
+        App.progress = "icon_200";
+        $("#img_convert_png_link").removeClass("active").removeClass("loader").attr('href', url);
+        $("#img_convert_png").attr('src', url);
+        ScrollBottom();
+        CheckProgress();
+        break;
+      case "icon_200":
+        App.progress = "icon_300";
+        $("#img_icon_200_link").removeClass("active").removeClass("loader").attr('href', url);
+        $("#img_icon_200").attr('src', url);
+        ScrollBottom();
+        CheckProgress();
+        break;
+      case "icon_300":
+        App.progress = "thumbnail_960_540";
+        $("#img_icon_300_link").removeClass("active").removeClass("loader").attr('href', url);
+        $("#img_icon_300").attr('src', url);
+        ScrollBottom();
+        CheckProgress();
+        break;
+      case "thumbnail_960_540":
+        App.progress = "thumbnail_1440_810";
+        $("#img_thumbnail_960_540_link").removeClass("active").removeClass("loader").attr('href', url);
+        $("#img_thumbnail_960_540").attr('src', url);
+        ScrollBottom();
+        CheckProgress();
+        break;
+      case "thumbnail_1440_810":
+        App.progress = "thumbnail_480_270";
+        $("#img_thumbnail_1440_810_link").removeClass("active").removeClass("loader").attr('href', url);
+        $("#img_thumbnail_1440_810").attr('src', url);
+        ScrollBottom();
+        CheckProgress();
+        break;
+      case "thumbnail_480_270":
+        App.progress = "finish";
+        $("#img_thumbnail_480_270_link").removeClass("active").removeClass("loader").attr('href', url);
+        $("#img_thumbnail_480_270").attr('src', url);
+        ScrollBottom();
+        break;
+      }
+  }, (e)=>{
+    setTimeout(function() {
+      CheckProgress();
+    }, 2000);
+  });
+};
+
+var CheckExist = function(url, callback, onerror) {
+  $.ajax({
+    type: 'HEAD',
+    url:  url
+  })
+  .done(function(res) {
+    callback(res);
+  })
+  .fail(function(e) {
+    onerror(e);
+  });
+};
+
+var ScrollBottom = function() {
+  var bottom = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  window.scroll(0, bottom);
+}
+
+var GetExtension = function(str) {
+  var re = /(?:\.([^.]+))?$/;
+  extension = re.exec(str)[1];
+  if (extension == "jpeg") {
+    extension = "jpg";
+  }
+  return extension;
+}
+
+var App = { sid: '', progress: '', extension: '', imgdata: null, url: location.origin + {{ .ApiPath }}, bucket: {{ .Bucket }} };
+
+</script>
+{{end}}
+{{define "favicon.ico"}}data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADf87v/3/e8/976vv/e+b3/3/S6/9/zuf/f9rv/3vm+/975vv/f9rv/3/O5/9/0uv/e+b3/3vq+/9/3vP/f9Lr/3vi9/+C/m//hj4P/4KGL/9/stf/e+b7/39mr/+GUhf/hk4T/39ep/975vv/f7bb/4KSN/+GPg//gvJn/3/e8/976v//hlob/4idH/+FEZv/f6rX/3v/B/+DMo//iJ1D/4idO/+DHoP/e/8H/3+22/+FPaf/iJ0f/4Y+D/975vv/e+b7/4KmP/+FOaf/hdnf/3+Cv/9/yuf/gyaL/4Vtt/+FZbP/gxp//3/K6/9/ir//henj/4U9p/+CjjP/e+b3/3/S6/9/vt//f7rf/3+ay/+F1d//hRmb/4J2K/9/wuP/f8bn/4KKM/+FGZv/hcHT/3+Sx/9/vt//f7rf/3/S6/9/0uv/f9Lr/3vi9/9/ut//hT2n/4idH/+GRg//e+r7/3vu+/+GYh//iJ0f/4URm/9/stf/e+L3/3/S6/9/0uv/f9Lr/3/O5/9/0uv/f77f/4KmP/+GXhv/gv5v/3/a7/9/2vP/gwpz/4ZeG/+Cnj//f7bb/3/W7/9/zuf/f9Lr/3/S6/9/zuf/f8rr/3/O5/974vf/e+b7/3/e8/9/0uv/f9Lr/3/e8/975vv/e+L3/3/O5/9/yuv/f87n/3/S6/9/zu//f97z/3vq+/975vv/e+L3/3vi9/9/3vP/f9Lr/3/S6/9/2vP/e+L3/3vi9/975vv/e+b7/3/e9/9/0uv/e+L3/4L+b/+GRg//gnIn/4ZqI/+GQhP/gu5j/3/a8/9/3vP/gvpv/4ZCD/+CbiP/gm4j/4ZKE/+C7mf/f97z/3vq//+GVhv/iJ0v/4ihf/+EuYf/iJ1H/4ZCE/974vf/e+b7/4ZeH/+InUP/hMWH/4ihe/+InTP/hjYL/3vm+/975vv/gqI//4VNq/+Fqcv/hWGv/4TBh/+CbiP/f973/3vm9/+Chi//hLGH/4Vhs/+Fpcv/hVmv/4KKM/975vf/f9Lr/3++3/9/ut//f5rL/4Wpy/+IoX//gnIn/3/e9/975vf/goYv/4ihe/+FlcP/f47D/3++3/9/ut//f9Lr/3/S6/9/0uv/e+L3/3+63/+FTav/iJ0v/4ZGD/974vf/e+b7/4ZiH/+InS//hSmf/3+y1/974vf/f9Lr/3/S6/9/0uv/f87n/3/S6/9/vt//gqI//4ZWG/+C/m//f9rz/3/e8/+DCnP/hlYb/4KaO/9/ttv/f9bv/3/O5/9/0uv/f9Lr/3/S6/9/0uv/f9Lr/3vm+/976vv/e+L3/3/S6/9/zu//e+L3/3vq//975vv/f9Lr/3/S6/9/0uv/f9Lr/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=={{end}}

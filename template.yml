@@ -1,0 +1,165 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless Application Template for Step Functions
+
+Parameters:
+  ApplicationName:
+    Type: String
+    Default: 'ServerlessApplicationCreateThumbnail'
+  FrontApiStageName:
+    Type: String
+    Default: 'ProdStage'
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: Serverless-Application-Step-Functions
+    Description: 'This application convert image and create icon, thumbnail.'
+    Author: tanaka-takurou
+    SpdxLicenseId: MIT
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ['ServerlessRepo']
+    HomePageUrl: https://github.com/tanaka-takurou/serverless-application-step-functions-page-go
+    SemanticVersion: 0.0.1
+    SourceCodeUrl: https://github.com/tanaka-takurou/serverless-application-step-functions-page-go
+
+Resources:
+  FrontApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      EndpointConfiguration: REGIONAL
+      StageName: !Ref FrontApiStageName
+  ImgBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+      CorsConfiguration:
+        CorsRules:
+        - AllowedHeaders: ['*']
+          AllowedMethods: [GET, HEAD]
+          AllowedOrigins: ['*']
+          Id: CORSRuleId1
+          MaxAge: '3600'
+  FrontFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bin/
+      Handler: main
+      MemorySize: 256
+      Runtime: go1.x
+      Description: 'Front Function'
+      Policies:
+      - Statement:
+        - Effect: 'Allow'
+          Action:
+            - 'logs:CreateLogGroup'
+            - 'logs:CreateLogStream'
+            - 'logs:PutLogEvents'
+          Resource: '*'
+      Events:
+        FrontApi:
+          Type: Api
+          Properties:
+            Path: '/'
+            Method: get
+            RestApiId: !Ref FrontApi
+      Environment:
+        Variables:
+          REGION: !Ref AWS::Region
+          BUCKET_NAME: !Ref 'ImgBucket'
+          API_PATH: !Join [ '', [ '/', !Ref 'FrontApiStageName', '/api'] ]
+  MainFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: api/bin/
+      Handler: main
+      MemorySize: 256
+      Runtime: go1.x
+      Description: 'API Function'
+      Policies:
+      - S3CrudPolicy:
+          BucketName: !Ref ImgBucket
+      - Statement:
+        - Effect: 'Allow'
+          Action:
+            - 'logs:CreateLogGroup'
+            - 'logs:CreateLogStream'
+            - 'logs:PutLogEvents'
+          Resource: '*'
+        - Effect: 'Allow'
+          Action:
+            - 'states:StartExecution'
+            - 'states:ListExecutions'
+          Resource: '*'
+      Events:
+        FrontApi:
+          Type: Api
+          Properties:
+            Path: '/api'
+            Method: post
+            RestApiId: !Ref FrontApi
+      Environment:
+        Variables:
+          REGION: !Ref AWS::Region
+          BUCKET_NAME: !Ref 'ImgBucket'
+          STATE_MACHINE_ARN: !Ref MainStateMachine
+  StepFunctionsMain:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: step/bin/
+      Handler: main
+      MemorySize: 256
+      Runtime: go1.x
+      Description: 'Step Functions Main'
+      Policies:
+      - S3CrudPolicy:
+          BucketName: !Ref ImgBucket
+      - Statement:
+        - Effect: 'Allow'
+          Action:
+            - 'logs:CreateLogGroup'
+            - 'logs:CreateLogStream'
+            - 'logs:PutLogEvents'
+          Resource: '*'
+      Environment:
+        Variables:
+          REGION: !Ref AWS::Region
+          BUCKET_NAME: !Ref 'ImgBucket'
+  FrontApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref FrontFunction
+      Principal: apigateway.amazonaws.com
+  MainStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: step/statemachine.json
+      DefinitionSubstitutions:
+        LambdaFunction: !GetAtt StepFunctionsMain.Arn
+      Role: !GetAtt StatesExecutionRole.Arn
+  StatesExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: StatesExecutionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "lambda:InvokeFunction"
+                Resource: "*"
+
+Outputs:
+  APIURI:
+    Value: !Join [ '', [ 'https://', !Ref FrontApi, '.execute-api.',!Ref 'AWS::Region','.amazonaws.com/',!Ref 'FrontApiStageName','/'] ]
