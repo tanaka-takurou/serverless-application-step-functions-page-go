@@ -20,7 +20,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['ServerlessRepo']
     HomePageUrl: https://github.com/tanaka-takurou/serverless-application-step-functions-page-go
-    SemanticVersion: 0.0.1
+    SemanticVersion: 0.0.2
     SourceCodeUrl: https://github.com/tanaka-takurou/serverless-application-step-functions-page-go
 
 Resources:
@@ -32,7 +32,6 @@ Resources:
   ImgBucket:
     Type: AWS::S3::Bucket
     Properties:
-      AccessControl: PublicRead
       CorsConfiguration:
         CorsRules:
         - AllowedHeaders: ['*']
