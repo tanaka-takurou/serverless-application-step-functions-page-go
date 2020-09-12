@@ -95,10 +95,10 @@ var CheckProgress = function() {
     url += "_convert.png"
     break;
   case "icon_200":
-    url += "_icon_200." + App.extension
+    url += "_icon_200.png"
     break;
   case "icon_300":
-    url += "_icon_300." + App.extension
+    url += "_icon_300.png"
     break;
   case "thumbnail_960_540":
     url += "_thumbnail_960_540." + App.extension

@@ -29,7 +29,7 @@
         "key.$": "$.Key",
         "icon": {
           "diameter": "200",
-          "bgcolor": "f0ff"
+          "bgcolor": "0"
         }
       },
       "Next": "Create large icon"
@@ -42,7 +42,7 @@
         "key.$": "$.Key",
         "icon": {
           "diameter": "300",
-          "bgcolor": "f0ff"
+          "bgcolor": "0"
         }
       },
       "Next": "Create medium thumbnail"
@@ -56,7 +56,7 @@
         "thumbnail": {
           "width": "960",
           "height": "540",
-          "bgcolor": "f0ff"
+          "bgcolor": "0"
         }
       },
       "Next": "Create large thumbnail"
@@ -70,7 +70,7 @@
         "thumbnail": {
           "width": "1440",
           "height": "810",
-          "bgcolor": "f0ff"
+          "bgcolor": "0"
         }
       },
       "Next": "Create small thumbnail"
@@ -84,7 +84,7 @@
         "thumbnail": {
           "width": "480",
           "height": "270",
-          "bgcolor": "f0ff"
+          "bgcolor": "0"
         }
       },
       "End": true
