@@ -68,7 +68,7 @@ func HandleRequest(ctx context.Context, request StepFunctionsRequestParameter) (
 				err = e
 			}
 		case "icon" :
-			if imgSrc, imgType, e := getImage(ctx, request.Key); e == nil {
+			if imgSrc, _, e := getImage(ctx, request.Key); e == nil {
 				col, e := strconv.ParseInt(request.Icon.Bgcolor, 16, 32)
 				if e != nil {
 					err = e
@@ -77,7 +77,7 @@ func HandleRequest(ctx context.Context, request StepFunctionsRequestParameter) (
 					if e != nil {
 						err = e
 					} else {
-						err = circleMaskImage(imgSrc, imgSrc.Bounds(), imgType, diameter, uint16(col), request.Key)
+						err = circleMaskImage(imgSrc, imgSrc.Bounds(), diameter, uint16(col), request.Key)
 					}
 				}
 			} else {
@@ -189,14 +189,14 @@ func scaleImage(imgSrc image.Image, rctSrc image.Rectangle, imgType string, dstW
 	return saveImage(imgDst, imgType, key, "thumbnail_" + strconv.Itoa(dstWidth) + "_" + strconv.Itoa(dstHeight))
 }
 
-func circleMaskImage(imgSrc image.Image, rctSrc image.Rectangle, imgType string, dstDiameter int, col uint16, key string) error {
+func circleMaskImage(imgSrc image.Image, rctSrc image.Rectangle, dstDiameter int, col uint16, key string) error {
 	p := image.Point{dstDiameter/2, dstDiameter/2}
 	r := dstDiameter / 2
 	imgDst := image.NewRGBA(image.Rect(0, 0, dstDiameter, dstDiameter))
 	if col != 0 {
 		for x := 0; x < dstDiameter; x++ {
 			for y := 0; y < dstDiameter; y++ {
-				imgDst.Set(x, y, color.Gray16{col})
+				imgDst.Set(x, y, color.Alpha16{col})
 			}
 		}
 	}
@@ -214,7 +214,7 @@ func circleMaskImage(imgSrc image.Image, rctSrc image.Rectangle, imgType string,
 	imgPointY := (imgDst_.Bounds().Dy() - dstDiameter) / 2
 	draw.DrawMask(imgDst, imgDst.Bounds(), imgDst_, image.Point{imgPointX,imgPointY}, &circle{p, r}, image.ZP, draw.Over)
 
-	return saveImage(imgDst, imgType, key, "icon_" + strconv.Itoa(dstDiameter))
+	return saveImage(imgDst, "png", key, "icon_" + strconv.Itoa(dstDiameter))
 }
 
 func saveImage(imgSrc image.Image, imgType string, key string, suffix string) error {
