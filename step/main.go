@@ -20,9 +20,9 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/external"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 type StepFunctionsRequestParameter struct {
@@ -63,7 +63,7 @@ func HandleRequest(ctx context.Context, request StepFunctionsRequestParameter) (
 		switch request.Action {
 		case "convert" :
 			if imgSrc, _, e := getImage(ctx, request.Key); e == nil {
-				err = saveImage(imgSrc, request.Type, request.Key, request.Action)
+				err = saveImage(ctx, imgSrc, request.Type, request.Key, request.Action)
 			} else {
 				err = e
 			}
@@ -77,7 +77,7 @@ func HandleRequest(ctx context.Context, request StepFunctionsRequestParameter) (
 					if e != nil {
 						err = e
 					} else {
-						err = circleMaskImage(imgSrc, imgSrc.Bounds(), diameter, uint16(col), request.Key)
+						err = circleMaskImage(ctx, imgSrc, imgSrc.Bounds(), diameter, uint16(col), request.Key)
 					}
 				}
 			} else {
@@ -97,7 +97,7 @@ func HandleRequest(ctx context.Context, request StepFunctionsRequestParameter) (
 						if e != nil {
 							err = e
 						} else {
-							err = scaleImage(imgSrc, imgSrc.Bounds(), imgType, width, height, uint16(col), request.Key)
+							err = scaleImage(ctx, imgSrc, imgSrc.Bounds(), imgType, width, height, uint16(col), request.Key)
 						}
 					}
 				}
@@ -118,7 +118,7 @@ func HandleRequest(ctx context.Context, request StepFunctionsRequestParameter) (
 	}, nil
 }
 
-func uploadImage(extension string, filedata []byte, key string) error {
+func uploadImage(ctx context.Context, extension string, filedata []byte, key string) error {
 	var contentType string
 
 	switch extension {
@@ -133,14 +133,17 @@ func uploadImage(extension string, filedata []byte, key string) error {
 	default:
 		return errors.New("this extension is invalid")
 	}
-	uploader := s3manager.NewUploader(cfg)
-	_, err := uploader.Upload(&s3manager.UploadInput{
-		ACL: s3.ObjectCannedACLPublicRead,
+	if s3Client == nil {
+		s3Client = getS3Client()
+	}
+	input := &s3.PutObjectInput{
+		ACL: types.ObjectCannedACLPublicRead,
 		Bucket: aws.String(os.Getenv("BUCKET_NAME")),
 		Key: aws.String(key),
 		Body: bytes.NewReader(filedata),
 		ContentType: aws.String(contentType),
-	})
+	}
+	_, err := s3Client.PutObject(ctx, input)
 	if err != nil {
 		log.Print(err)
 		return err
@@ -150,24 +153,24 @@ func uploadImage(extension string, filedata []byte, key string) error {
 
 func getImage(ctx context.Context, key string)(image.Image, string, error) {
 	if s3Client == nil {
-		s3Client = s3.New(cfg)
+		s3Client = getS3Client()
 	}
-	req := s3Client.GetObjectRequest(&s3.GetObjectInput{
+	input := &s3.GetObjectInput{
 		Bucket: aws.String(os.Getenv("BUCKET_NAME")),
 		Key:    aws.String(key),
-	})
-	res, err := req.Send(ctx)
+	}
+	res, err := s3Client.GetObject(ctx, input)
 	if err != nil {
 		log.Print(err)
 		return nil, "", err
 	}
 
-	rc := res.GetObjectOutput.Body
+	rc := res.Body
 	defer rc.Close()
 	return image.Decode(rc)
 }
 
-func scaleImage(imgSrc image.Image, rctSrc image.Rectangle, imgType string, dstWidth int, dstHeight int, col uint16, key string) error {
+func scaleImage(ctx context.Context, imgSrc image.Image, rctSrc image.Rectangle, imgType string, dstWidth int, dstHeight int, col uint16, key string) error {
 	imgDst := image.NewRGBA(image.Rect(0, 0, dstWidth, dstHeight))
 	if col != 0 {
 		for x := 0; x < dstWidth; x++ {
@@ -186,10 +189,10 @@ func scaleImage(imgSrc image.Image, rctSrc image.Rectangle, imgType string, dstW
 	}
 	draw.BiLinear.Scale(imgDst, drawBounds, imgSrc, rctSrc, draw.Over, nil)
 
-	return saveImage(imgDst, imgType, key, "thumbnail_" + strconv.Itoa(dstWidth) + "_" + strconv.Itoa(dstHeight))
+	return saveImage(ctx, imgDst, imgType, key, "thumbnail_" + strconv.Itoa(dstWidth) + "_" + strconv.Itoa(dstHeight))
 }
 
-func circleMaskImage(imgSrc image.Image, rctSrc image.Rectangle, dstDiameter int, col uint16, key string) error {
+func circleMaskImage(ctx context.Context, imgSrc image.Image, rctSrc image.Rectangle, dstDiameter int, col uint16, key string) error {
 	p := image.Point{dstDiameter/2, dstDiameter/2}
 	r := dstDiameter / 2
 	imgDst := image.NewRGBA(image.Rect(0, 0, dstDiameter, dstDiameter))
@@ -214,10 +217,10 @@ func circleMaskImage(imgSrc image.Image, rctSrc image.Rectangle, dstDiameter int
 	imgPointY := (imgDst_.Bounds().Dy() - dstDiameter) / 2
 	draw.DrawMask(imgDst, imgDst.Bounds(), imgDst_, image.Point{imgPointX,imgPointY}, &circle{p, r}, image.ZP, draw.Over)
 
-	return saveImage(imgDst, "png", key, "icon_" + strconv.Itoa(dstDiameter))
+	return saveImage(ctx, imgDst, "png", key, "icon_" + strconv.Itoa(dstDiameter))
 }
 
-func saveImage(imgSrc image.Image, imgType string, key string, suffix string) error {
+func saveImage(ctx context.Context, imgSrc image.Image, imgType string, key string, suffix string) error {
 	if imgSrc == nil {
 		log.Print("Image is nil")
 	}
@@ -245,7 +248,7 @@ func saveImage(imgSrc image.Image, imgType string, key string, suffix string) er
 	default:
 		log.Print("Image Format error")
 	}
-	return uploadImage("." + imgType, dst.Bytes(), createNewKey(key, suffix, imgType))
+	return uploadImage(ctx, "." + imgType, dst.Bytes(), createNewKey(key, suffix, imgType))
 }
 
 type circle struct {
@@ -277,13 +280,21 @@ func createNewKey(key string, suffix string, newExtension string) string {
 	return key[:(len(key) - len(extension))] + "_" + suffix + "." + newExtension
 }
 
-func init() {
+func getS3Client() *s3.Client {
+	if cfg.Region != os.Getenv("REGION") {
+		cfg = getConfig()
+	}
+	return s3.NewFromConfig(cfg)
+}
+
+func getConfig() aws.Config {
 	var err error
-	cfg, err = external.LoadDefaultAWSConfig()
-	cfg.Region = os.Getenv("REGION")
+	newConfig, err := config.LoadDefaultConfig()
+	newConfig.Region = os.Getenv("REGION")
 	if err != nil {
 		log.Print(err)
 	}
+	return newConfig
 }
 
 func main() {
