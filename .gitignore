@@ -4,6 +4,8 @@
 *.so
 *.dylib
 
+go.sum
+
 packaged.yml
 
 out.json
