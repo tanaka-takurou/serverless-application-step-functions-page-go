@@ -134,7 +134,7 @@ func uploadImage(ctx context.Context, extension string, filedata []byte, key str
 		return errors.New("this extension is invalid")
 	}
 	if s3Client == nil {
-		s3Client = getS3Client()
+		s3Client = getS3Client(ctx)
 	}
 	input := &s3.PutObjectInput{
 		ACL: types.ObjectCannedACLPublicRead,
@@ -153,7 +153,7 @@ func uploadImage(ctx context.Context, extension string, filedata []byte, key str
 
 func getImage(ctx context.Context, key string)(image.Image, string, error) {
 	if s3Client == nil {
-		s3Client = getS3Client()
+		s3Client = getS3Client(ctx)
 	}
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(os.Getenv("BUCKET_NAME")),
@@ -280,21 +280,20 @@ func createNewKey(key string, suffix string, newExtension string) string {
 	return key[:(len(key) - len(extension))] + "_" + suffix + "." + newExtension
 }
 
-func getS3Client() *s3.Client {
+func getS3Client(ctx context.Context) *s3.Client {
 	if cfg.Region != os.Getenv("REGION") {
-		cfg = getConfig()
+		cfg = getConfig(ctx)
 	}
 	return s3.NewFromConfig(cfg)
 }
 
-func getConfig() aws.Config {
+func getConfig(ctx context.Context) aws.Config {
 	var err error
-	newConfig, err := config.LoadDefaultConfig()
-	newConfig.Region = os.Getenv("REGION")
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(os.Getenv("REGION")))
 	if err != nil {
 		log.Print(err)
 	}
-	return newConfig
+	return cfg
 }
 
 func main() {

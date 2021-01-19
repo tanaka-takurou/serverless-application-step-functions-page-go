@@ -2,13 +2,11 @@ package main
 
 import (
 	"os"
-	"fmt"
 	"log"
 	"time"
 	"bytes"
 	"errors"
 	"strings"
-	"reflect"
 	"context"
 	"net/http"
 	"path/filepath"
@@ -112,7 +110,7 @@ func uploadImage(ctx context.Context, filename string, filedata string)(string, 
 	name := strings.Replace(t.Format(layout2), ".", "", 1)
 	key := strings.Replace(t.Format(layout), ".", "", 1) + "/" + name + extension
 	if s3Client == nil {
-		s3Client = getS3Client()
+		s3Client = getS3Client(ctx)
 	}
 	input := &s3.PutObjectInput{
 		ACL: stypes.ObjectCannedACLPublicRead,
@@ -131,7 +129,7 @@ func uploadImage(ctx context.Context, filename string, filedata string)(string, 
 
 func startExecution(ctx context.Context, name string, key string) error {
 	if sfnClient == nil {
-		sfnClient = getSfnClient()
+		sfnClient = getSfnClient(ctx)
 	}
 	input := &sfn.StartExecutionInput{
 		Input: aws.String("{\"Key\" : \"" + key + "\"}"),
@@ -149,7 +147,7 @@ func startExecution(ctx context.Context, name string, key string) error {
 
 func checkStatus(ctx context.Context, id string)(string, error) {
 	if sfnClient == nil {
-		sfnClient = getSfnClient()
+		sfnClient = getSfnClient(ctx)
 	}
 
 	statusList := []ftypes.ExecutionStatus{ftypes.ExecutionStatusRunning, ftypes.ExecutionStatusSucceeded}
@@ -166,7 +164,7 @@ func checkStatus(ctx context.Context, id string)(string, error) {
 			return "", err
 		}
 		for _, w := range res.Executions {
-			if id == stringValue(w.Name) {
+			if id == aws.ToString(w.Name) {
 				return string(v), nil
 			}
 		}
@@ -175,96 +173,27 @@ func checkStatus(ctx context.Context, id string)(string, error) {
 	return "Error", nil
 }
 
-func getSfnClient() *sfn.Client {
+func getSfnClient(ctx context.Context) *sfn.Client {
 	if cfg.Region != os.Getenv("REGION") {
-		cfg = getConfig()
+		cfg = getConfig(ctx)
 	}
 	return sfn.NewFromConfig(cfg)
 }
 
-func getS3Client() *s3.Client {
+func getS3Client(ctx context.Context) *s3.Client {
 	if cfg.Region != os.Getenv("REGION") {
-		cfg = getConfig()
+		cfg = getConfig(ctx)
 	}
 	return s3.NewFromConfig(cfg)
 }
 
-func getConfig() aws.Config {
+func getConfig(ctx context.Context) aws.Config {
 	var err error
-	newConfig, err := config.LoadDefaultConfig()
-	newConfig.Region = os.Getenv("REGION")
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(os.Getenv("REGION")))
 	if err != nil {
 		log.Print(err)
 	}
-	return newConfig
-}
-
-func stringValue(i interface{}) string {
-	var buf bytes.Buffer
-	strVal(reflect.ValueOf(i), 0, &buf)
-	res := buf.String()
-	return res[1:len(res) - 1]
-}
-
-func strVal(v reflect.Value, indent int, buf *bytes.Buffer) {
-	for v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	switch v.Kind() {
-	case reflect.Struct:
-		buf.WriteString("{\n")
-		for i := 0; i < v.Type().NumField(); i++ {
-			ft := v.Type().Field(i)
-			fv := v.Field(i)
-			if ft.Name[0:1] == strings.ToLower(ft.Name[0:1]) {
-				continue // ignore unexported fields
-			}
-			if (fv.Kind() == reflect.Ptr || fv.Kind() == reflect.Slice) && fv.IsNil() {
-				continue // ignore unset fields
-			}
-			buf.WriteString(strings.Repeat(" ", indent+2))
-			buf.WriteString(ft.Name + ": ")
-			if tag := ft.Tag.Get("sensitive"); tag == "true" {
-				buf.WriteString("<sensitive>")
-			} else {
-				strVal(fv, indent+2, buf)
-			}
-			buf.WriteString(",\n")
-		}
-		buf.WriteString("\n" + strings.Repeat(" ", indent) + "}")
-	case reflect.Slice:
-		nl, id, id2 := "", "", ""
-		if v.Len() > 3 {
-			nl, id, id2 = "\n", strings.Repeat(" ", indent), strings.Repeat(" ", indent+2)
-		}
-		buf.WriteString("[" + nl)
-		for i := 0; i < v.Len(); i++ {
-			buf.WriteString(id2)
-			strVal(v.Index(i), indent+2, buf)
-			if i < v.Len()-1 {
-				buf.WriteString("," + nl)
-			}
-		}
-		buf.WriteString(nl + id + "]")
-	case reflect.Map:
-		buf.WriteString("{\n")
-		for i, k := range v.MapKeys() {
-			buf.WriteString(strings.Repeat(" ", indent+2))
-			buf.WriteString(k.String() + ": ")
-			strVal(v.MapIndex(k), indent+2, buf)
-			if i < v.Len()-1 {
-				buf.WriteString(",\n")
-			}
-		}
-		buf.WriteString("\n" + strings.Repeat(" ", indent) + "}")
-	default:
-		format := "%v"
-		switch v.Interface().(type) {
-		case string:
-			format = "%q"
-		}
-		fmt.Fprintf(buf, format, v.Interface())
-	}
+	return cfg
 }
 
 func main() {
