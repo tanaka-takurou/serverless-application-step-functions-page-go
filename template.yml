@@ -20,7 +20,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['ServerlessRepo']
     HomePageUrl: https://github.com/tanaka-takurou/serverless-application-step-functions-page-go
-    SemanticVersion: 0.0.3
+    SemanticVersion: 0.0.4
     SourceCodeUrl: https://github.com/tanaka-takurou/serverless-application-step-functions-page-go
 
 Resources:
