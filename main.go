@@ -5,6 +5,7 @@ import (
 	"os"
 	"log"
 	"bytes"
+	"embed"
 	"context"
 	"net/http"
 	"html/template"
@@ -18,11 +19,14 @@ type TemplateData struct {
 	Bucket  string
 }
 
+//go:embed templates
+var templateFS embed.FS
+
 func HandleRequest(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayProxyResponse, error) {
 	var dat TemplateData
 	buf := new(bytes.Buffer)
 	fw := io.Writer(buf)
-	tmp := template.Must(template.New("tmp").ParseFiles("templates/index.html", "templates/header.html", "templates/view.html"))
+	tmp := template.Must(template.New("tmp").ParseFS(templateFS, "templates/index.html", "templates/header.html", "templates/view.html"))
 	dat.Title = "Step Functions"
 	dat.ApiPath = os.Getenv("API_PATH")
 	dat.Bucket = "https://" + os.Getenv("BUCKET_NAME") + ".s3-" + os.Getenv("REGION") + ".amazonaws.com/"
