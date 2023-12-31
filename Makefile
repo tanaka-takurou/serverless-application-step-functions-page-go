@@ -10,7 +10,7 @@ clean:
 build:
 	mkdir -p bin
 	scripts/create_template.sh
-	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/main
+	GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o bin/bootstrap
 	$(MAKE) -C "${root}/api" build
 	$(MAKE) -C "${root}/step" build
 
