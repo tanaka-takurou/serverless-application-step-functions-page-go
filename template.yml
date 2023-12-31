@@ -42,10 +42,12 @@ Resources:
   FrontFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Architectures:
+      - arm64
       CodeUri: bin/
-      Handler: main
+      Handler: bootstrap
       MemorySize: 256
-      Runtime: go1.x
+      Runtime: provided.al2
       Description: 'Front Function'
       Policies:
       - Statement:
@@ -70,10 +72,12 @@ Resources:
   MainFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Architectures:
+      - arm64
       CodeUri: api/bin/
-      Handler: main
+      Handler: bootstrap
       MemorySize: 256
-      Runtime: go1.x
+      Runtime: provided.al2
       Description: 'API Function'
       Policies:
       - S3CrudPolicy:
@@ -105,10 +109,12 @@ Resources:
   StepFunctionsMain:
     Type: AWS::Serverless::Function
     Properties:
+      Architectures:
+      - arm64
       CodeUri: step/bin/
-      Handler: main
+      Handler: bootstrap
       MemorySize: 256
-      Runtime: go1.x
+      Runtime: provided.al2
       Description: 'Step Functions Main'
       Policies:
       - S3CrudPolicy:
